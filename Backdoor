@@ -40,7 +40,7 @@ local function testRemote(remote)
                 Duration = 8
             })
 
-            -- Log opcional (desactivar en uso real)
+            
             -- pcall(function()
             --     syn.request({
             --         Url = "YOUR_WEBHOOK",
